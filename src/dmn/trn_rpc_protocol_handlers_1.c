@@ -232,6 +232,7 @@ int *update_ep_1_svc(rpc_trn_endpoint_t *ep, struct svc_req *rqstp)
 		goto error;
 	}
 
+	memset(&epval, 0, sizeof(epval));
 	memcpy(epkey.tunip, &ep->tunid, sizeof(ep->tunid));
 	epkey.tunip[2] = ep->ip;
 	epval.eptype = ep->eptype;
@@ -594,7 +595,9 @@ rpc_trn_endpoint_t *get_ep_1_svc(rpc_trn_endpoint_key_t *argp,
 	result.eptype = epval.eptype;
 	memcpy(result.mac, epval.mac, sizeof(epval.mac));
 	result.remote_ips.remote_ips_len = epval.nremote_ips;
-	result.remote_ips.remote_ips_val = epval.remote_ips;
+	for (unsigned int i = 0; i < epval.nremote_ips; i++) {
+		result.remote_ips.remote_ips_val[i] = epval.remote_ips[i];
+	}
 	result.veth = ""; // field to be removed
 	return &result;
 
@@ -832,6 +835,7 @@ int *update_agent_ep_1_svc(rpc_trn_endpoint_t *ep, struct svc_req *rqstp)
 		goto error;
 	}
 
+	memset(&epval, 0, sizeof(epval));
 	memcpy(epkey.tunip, &ep->tunid, sizeof(ep->tunid));
 	epkey.tunip[2] = ep->ip;
 	epval.eptype = ep->eptype;
@@ -980,7 +984,9 @@ rpc_trn_endpoint_t *get_agent_ep_1_svc(rpc_trn_endpoint_key_t *argp,
 	result.eptype = epval.eptype;
 	memcpy(result.mac, epval.mac, sizeof(epval.mac));
 	result.remote_ips.remote_ips_len = epval.nremote_ips;
-	result.remote_ips.remote_ips_val = epval.remote_ips;
+	for (unsigned int i = 0; i < epval.nremote_ips; i++) {
+		result.remote_ips.remote_ips_val[i] = epval.remote_ips[i];
+	}
 	result.veth = ""; //field to be removed
 	return &result;
 
@@ -1159,6 +1165,13 @@ int *update_agent_md_1_svc(rpc_trn_agent_metadata_t *agent_md,
 	amd.ep.hosted_iface = amd.eth.iface_index;
 	memcpy(amd.ep.mac, agent_md->ep.mac, 6 * sizeof(amd.ep.mac[0]));
 
+	amd.cluster_cidr.host_cidr.ip = agent_md->cluster_cidr.host_cidr.ip;
+	amd.cluster_cidr.host_cidr.netmask = agent_md->cluster_cidr.host_cidr.netmask;
+	amd.cluster_cidr.pod_cidr.ip = agent_md->cluster_cidr.pod_cidr.ip;
+	amd.cluster_cidr.pod_cidr.netmask = agent_md->cluster_cidr.pod_cidr.netmask;
+	amd.cluster_cidr.service_cidr.ip = agent_md->cluster_cidr.service_cidr.ip;
+	amd.cluster_cidr.service_cidr.netmask = agent_md->cluster_cidr.service_cidr.netmask;
+
 	rc = trn_agent_update_agent_metadata(md, &amd, eth_md);
 
 	if (rc != 0) {
@@ -1278,7 +1291,9 @@ rpc_trn_agent_metadata_t *get_agent_md_1_svc(rpc_intf_t *argp,
 	memcpy(result.ep.mac, amd.ep.mac, sizeof(amd.ep.mac));
 	result.ep.veth = "";
 	result.ep.remote_ips.remote_ips_len = amd.ep.nremote_ips;
-	result.ep.remote_ips.remote_ips_val = amd.ep.remote_ips;
+	for (unsigned int i = 0; i < amd.ep.nremote_ips; i++) {
+		result.ep.remote_ips.remote_ips_val[i] = amd.ep.remote_ips[i];
+	}
 
 	result.ep.hosted_interface = if_indextoname(amd.ep.hosted_iface, buf);
 	if (result.ep.hosted_interface == NULL) {

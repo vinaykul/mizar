@@ -164,12 +164,24 @@ struct rpc_trn_tun_intf_t {
        unsigned char mac[6];
 };
 
+struct rpc_trn_ip_cidr_t {
+       uint32_t ip;
+       uint32_t netmask;
+};
+
+struct rpc_trn_cluster_cidr_t {
+        struct rpc_trn_ip_cidr_t host_cidr;
+        struct rpc_trn_ip_cidr_t pod_cidr;
+        struct rpc_trn_ip_cidr_t service_cidr;
+};
+
 /* Defines an endpoint associated with transit agent */
 struct rpc_trn_agent_metadata_t {
        string interface<20>;
        rpc_trn_tun_intf_t eth;
        rpc_trn_endpoint_t ep;
        rpc_trn_network_t net;
+       rpc_trn_cluster_cidr_t cluster_cidr;
 };
 
 enum rpc_trn_pipeline_stage {

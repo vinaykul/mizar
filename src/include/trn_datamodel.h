@@ -88,10 +88,10 @@ struct endpoint_key_t {
 
 struct endpoint_t {
 	__u32 eptype;
-	__u32 nremote_ips;
-	__u32 remote_ips[TRAN_MAX_REMOTES];
 	int hosted_iface;
 	unsigned char mac[6];
+	__u32 nremote_ips;
+	__u32 remote_ips[TRAN_MAX_REMOTES];
 } __attribute__((packed, aligned(4)));
 
 struct packet_metadata_key_t {
@@ -139,7 +139,19 @@ struct vpc_t {
 struct tunnel_iface_t {
 	int iface_index;
 	__u32 ip;
+	__u32 netmask;
 	unsigned char mac[6];
+} __attribute__((packed, aligned(4)));
+
+struct ip_cidr_t {
+	__u32 ip;
+	__u32 netmask;
+} __attribute__((packed, aligned(4)));
+
+struct cluster_cidr_t {
+	struct ip_cidr_t host_cidr;
+	struct ip_cidr_t pod_cidr;
+	struct ip_cidr_t service_cidr;
 } __attribute__((packed, aligned(4)));
 
 struct agent_metadata_t {
@@ -148,6 +160,7 @@ struct agent_metadata_t {
 	struct network_t net;
 	struct endpoint_key_t epkey;
 	struct endpoint_t ep;
+	struct cluster_cidr_t cluster_cidr;
 } __attribute__((packed, aligned(4)));
 
 struct ipv4_tuple_t {
@@ -220,6 +233,24 @@ struct pod_and_namespace_label_policy_t {
 struct ipv4_ct_tuple_t {
 	struct vpc_key_t vpc;
 	struct ipv4_tuple_t tuple;
+} __attribute__((packed));
+
+struct ipv4_masq_conn_key_t {
+	/* Masqueraded source IP and original destination IP */
+	__u32 masq_saddr;
+	__u32 daddr;
+	/* Masqueraded source port and original destination port */
+	__u16 masq_sport;
+	__u16 dport;
+	__u8 protocol;
+} __attribute__((packed));
+
+struct ipv4_masq_conn_value_t {
+	__u64 tunnel_id;
+	__u32 saddr;
+	__u16 sport;
+	int src_ifindex;
+	unsigned char src_mac[6];
 } __attribute__((packed));
 
 enum conn_status {

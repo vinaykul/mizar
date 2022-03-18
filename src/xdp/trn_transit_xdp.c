@@ -405,8 +405,6 @@ static __inline int trn_handle_scaled_ep_modify(struct transit_packet *pkt)
 static __inline int trn_process_inner_ip(struct transit_packet *pkt)
 {
 	pkt->inner_ip = (void *)pkt->inner_eth + pkt->inner_eth_off;
-	__u32 ipproto;
-
 	if (pkt->inner_ip + 1 > pkt->data_end) {
 		bpf_debug("[Transit:%d:0x%x] ABORTED: Bad offset\n", __LINE__,
 			  bpf_ntohl(pkt->itf_ipv4));
@@ -469,7 +467,7 @@ static __inline int trn_process_inner_ip(struct transit_packet *pkt)
 			}
 		} else {
 			pkt->pod_label_value_opt = (void *)pkt->scaled_ep_opt + sizeof(*pkt->scaled_ep_opt);
-	
+
 			if (pkt->pod_label_value_opt + 1 > pkt->data_end) {
 				bpf_debug("[Scaled_EP:%d:0x%x] ABORTED: Bad offset\n", __LINE__,
 					bpf_ntohl(pkt->itf_ipv4));
@@ -813,12 +811,53 @@ static __inline int trn_process_ip(struct transit_packet *pkt)
 		return XDP_ABORTED;
 	}
 
+	if (!pkt->ip->ttl) {
+		return XDP_DROP;
+	}
+
+	if ((pkt->ip->saddr & pkt->itf_netmask) != (pkt->ip->daddr & pkt->itf_netmask)) {
+		struct ipv4_tuple_t ingress = {
+			.protocol = pkt->ip->protocol,
+			.saddr = pkt->ip->saddr,
+			.daddr = pkt->ip->daddr,
+			.sport = 0,
+			.dport = 0,
+		};
+		if (pkt->ip->protocol == IPPROTO_TCP) {
+			struct tcphdr *tcph = (void *)pkt->ip + sizeof(*pkt->ip);
+			if (tcph + 1 > pkt->data_end) {
+				bpf_debug("[Transit:%d:0x%x] ABORTED: Bad offset in external ingress TCP packet\n", __LINE__,
+					  bpf_ntohl(pkt->itf_ipv4));
+				return XDP_ABORTED;
+			}
+			ingress.sport = tcph->source;
+			ingress.dport = tcph->dest;
+		}
+		if (pkt->ip->protocol == IPPROTO_UDP) {
+			struct udphdr *udph = (void *)pkt->ip + sizeof(*pkt->ip);
+			if (udph + 1 > pkt->data_end) {
+				bpf_debug("[Transit:%d:0x%x] ABORTED: Bad offset in external ingress UDP packet\n", __LINE__,
+					  bpf_ntohl(pkt->itf_ipv4));
+				return XDP_ABORTED;
+			}
+			ingress.sport = udph->source;
+			ingress.dport = udph->dest;
+		}
+		struct ipv4_masq_conn_value_t *masq_conn = get_ipv4_masqueraded_conn_state(&masquerade_conn_map, &ingress);
+		if (NULL != masq_conn) {
+			__u64 csum = 0;
+			pkt->ip->check = 0;
+			pkt->ip->daddr = masq_conn->saddr;
+			trn_ipv4_csum_inline(pkt->ip, &csum);
+			pkt->ip->check = csum;
+			trn_set_dst_mac(pkt->data, masq_conn->src_mac);
+			return bpf_redirect(masq_conn->src_ifindex, 0);
+		}
+	}
+
 	if (pkt->ip->protocol != IPPROTO_UDP) {
 		return XDP_PASS;
 	}
-
-	if (!pkt->ip->ttl)
-		return XDP_DROP;
 
 	/* Only process packets designated to this interface!
 	 * In functional tests - relying on docker0 - we see such packets!
@@ -872,6 +911,7 @@ int _transit(struct xdp_md *ctx)
 	}
 
 	pkt.itf_ipv4 = itf->ip;
+	pkt.itf_netmask = itf->netmask;
 	pkt.itf_idx = itf->iface_index;
 
 	int action = trn_process_eth(&pkt);

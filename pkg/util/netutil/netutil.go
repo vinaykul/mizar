@@ -108,6 +108,35 @@ func ActivateInterface(
 			return err
 		}
 
+		cmdTxt, result, err := executil.Execute("nsenter", "-t", "1", "-m", "-u", "-n", "-i", "ip", "route", "show", "default")
+		activateIfLog.WriteString(fmt.Sprintf(" + [Cmd: '%s' -> Result: '%s']", cmdTxt, result))
+		if err != nil {
+			return err
+		}
+		if result == "" {
+			activateIfLog.WriteString(fmt.Sprintf(" + [Static ARP entry for gateway nexthop not configured]"))
+			return nil
+		}
+		result = strings.TrimSuffix(result,"\n")
+		default_gw := strings.Fields(result)[2]
+		arpCmdTxt, arpEntry, err := executil.Execute("nsenter", "-t", "1", "-m", "-u", "-n", "-i", "arp", "-an", default_gw)
+		activateIfLog.WriteString(fmt.Sprintf(" + [ARPCmd: '%s' -> ARPEntry: '%s']", arpCmdTxt, arpEntry))
+		if err != nil {
+			return err
+		}
+		if arpEntry == "" {
+			activateIfLog.WriteString(fmt.Sprintf(" + [Static ARP entry for gateway nexthop not configured]"))
+			return nil
+		}
+		arpEntry = strings.TrimSuffix(arpEntry,"\n")
+		gw_nexthop_mac := strings.Fields(arpEntry)[3]
+		activateIfLog.WriteString(fmt.Sprintf(" + [Add static ARP entry '%s' for gateway nexthop]", gw_nexthop_mac))
+		arpSetCmd, arpSetResult, err := executil.Execute("arp", "-s", gatewayIp, gw_nexthop_mac)
+		activateIfLog.WriteString(fmt.Sprintf(" + [ARPsetCmd: '%s' -> ARPsetResult: '%s']", arpSetCmd, arpSetResult))
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}); err != nil {
 		return activateIfLog.String(), err
@@ -115,7 +144,7 @@ func ActivateInterface(
 
 	activateIfLog.WriteString(fmt.Sprintf(" + [Disable tso on interface '%s']", ifName))
 	cmdTxt, result, err := executil.Execute("ip", "netns", "exec", netNSFileName, "ethtool", "-K", ifName, "tso", "off", "gso", "off", "ufo", "off")
-	activateIfLog.WriteString(fmt.Sprintf(" + [Cmd: '%s -> Result: '%s']", cmdTxt, result))
+	activateIfLog.WriteString(fmt.Sprintf(" + [Cmd: '%s' -> Result: '%s']", cmdTxt, result))
 	if err != nil {
 		return activateIfLog.String(), err
 	}

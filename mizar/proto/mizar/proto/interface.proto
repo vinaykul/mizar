@@ -84,6 +84,12 @@ message Interface {
   string pod_network_class = 13;
   string vpc_ip = 14;
   string vpc_prefix = 15;
+  string host_cidr_ip=16;
+  string host_cidr_prefix=17;
+  string pod_cidr_ip=18;
+  string pod_cidr_prefix=19;
+  string service_cidr_ip=20;
+  string service_cidr_prefix=21;
 }
 
 message InterfacesList {

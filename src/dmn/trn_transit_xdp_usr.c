@@ -128,7 +128,8 @@ int trn_bpf_maps_init(struct user_metadata_t *md)
 	md->ing_vsip_supp_map = bpf_map__next(md->ing_vsip_ppo_map, md->obj);
 	md->ing_vsip_except_map = bpf_map__next(md->ing_vsip_supp_map, md->obj);
 	md->conn_track_cache = bpf_map__next(md->ing_vsip_except_map, md->obj);
-	md->ing_pod_label_policy_map = bpf_map__next(md->conn_track_cache, md->obj);
+	md->masquerade_conn_map = bpf_map__next(md->conn_track_cache, md->obj);
+	md->ing_pod_label_policy_map = bpf_map__next(md->masquerade_conn_map, md->obj);
 	md->ing_namespace_label_policy_map = bpf_map__next(md->ing_pod_label_policy_map, md->obj);
 	md->ing_pod_and_namespace_label_policy_map = bpf_map__next(md->ing_namespace_label_policy_map, md->obj);
 	md->tx_stats_map = bpf_map__next(md->ing_pod_and_namespace_label_policy_map, md->obj);
@@ -144,7 +145,7 @@ int trn_bpf_maps_init(struct user_metadata_t *md)
 	    !md->ing_vsip_except_map || !md->eg_vsip_enforce_map ||
 	    !md->eg_vsip_prim_map || !md->eg_vsip_ppo_map ||
 	    !md->eg_vsip_supp_map || !md->eg_vsip_except_map ||
-	    !md->conn_track_cache || !md->ing_pod_label_policy_map ||
+	    !md->conn_track_cache || !md->masquerade_conn_map || !md->ing_pod_label_policy_map ||
 	    !md->ing_namespace_label_policy_map ||
 	    !md->ing_pod_and_namespace_label_policy_map || !md->tx_stats_map) {
 		TRN_LOG_ERROR("Failure finding maps objects.");
@@ -175,6 +176,7 @@ int trn_bpf_maps_init(struct user_metadata_t *md)
 	md->ing_vsip_supp_map_fd = bpf_map__fd(md->ing_vsip_supp_map);
 	md->ing_vsip_except_map_fd = bpf_map__fd(md->ing_vsip_except_map);
 	md->conn_track_cache_fd = bpf_map__fd(md->conn_track_cache);
+	md->masquerade_conn_map_fd = bpf_map__fd(md->masquerade_conn_map);
 	md->ing_pod_label_policy_map_fd = bpf_map__fd(md->ing_pod_label_policy_map);
 	md->ing_namespace_label_policy_map_fd = bpf_map__fd(md->ing_namespace_label_policy_map);
 	md->ing_pod_and_namespace_label_policy_map_fd = bpf_map__fd(md->ing_pod_and_namespace_label_policy_map);
@@ -203,6 +205,7 @@ int trn_bpf_maps_init(struct user_metadata_t *md)
 	bpf_map__pin(md->ing_vsip_supp_map, ing_vsip_supp_map_path);
 	bpf_map__pin(md->ing_vsip_except_map, ing_vsip_except_map_path);
 	bpf_map__pin(md->conn_track_cache, conn_track_cache_path);
+	bpf_map__pin(md->masquerade_conn_map, masquerade_conn_map_path);
 	bpf_map__pin(md->ing_pod_label_policy_map, ing_pod_label_policy_map_path);
 	bpf_map__pin(md->ing_namespace_label_policy_map, ing_namespace_label_policy_map_path);
 	bpf_map__pin(md->ing_pod_and_namespace_label_policy_map, ing_pod_and_namespace_label_policy_map_path);
@@ -398,6 +401,7 @@ int trn_add_prog(struct user_metadata_t *md, unsigned int prog_idx,
 	_SET_INNER_MAP(ing_vsip_supp_map);
 	_SET_INNER_MAP(ing_vsip_except_map);
 	_SET_INNER_MAP(conn_track_cache);
+	_SET_INNER_MAP(masquerade_conn_map);
 	_SET_INNER_MAP(ing_pod_label_policy_map);
 	_SET_INNER_MAP(ing_namespace_label_policy_map);
 	_SET_INNER_MAP(ing_pod_and_namespace_label_policy_map);
@@ -449,6 +453,7 @@ int trn_add_prog(struct user_metadata_t *md, unsigned int prog_idx,
 	_UPDATE_INNER_MAP(ing_vsip_supp_map);
 	_UPDATE_INNER_MAP(ing_vsip_except_map);
 	_UPDATE_INNER_MAP(conn_track_cache);
+	_UPDATE_INNER_MAP(masquerade_conn_map);
 	_UPDATE_INNER_MAP(ing_pod_label_policy_map);
 	_UPDATE_INNER_MAP(ing_namespace_label_policy_map);
 	_UPDATE_INNER_MAP(ing_pod_and_namespace_label_policy_map);
@@ -567,7 +572,17 @@ int trn_user_metadata_init(struct user_metadata_t *md, char *itf,
 		return 1;
 	}
 	TRN_LOG_DEBUG("trn_user_metadata_init: mapped hosted_interface:%s to index %d", itf, md->ifindex);
-	md->eth.ip = trn_get_interface_ipv4(md->ifindex);
+	struct ifreq ifr;
+	if (trn_get_interface_property(md->ifindex, SIOCGIFADDR, &ifr) != 0) {
+		TRN_LOG_ERROR("SIOCGIFADDR failed.");
+		return 1;
+	}
+	md->eth.ip = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr;
+	if (trn_get_interface_property(md->ifindex, SIOCGIFNETMASK, &ifr) != 0) {
+		TRN_LOG_ERROR("SIOCGIFNETMASK failed.");
+		return 1;
+	}
+	md->eth.netmask = ((struct sockaddr_in *)&ifr.ifr_netmask)->sin_addr.s_addr;
 	md->eth.iface_index = md->ifindex;
 
 	// reuse the pinned maps, if any
@@ -582,6 +597,7 @@ int trn_user_metadata_init(struct user_metadata_t *md, char *itf,
 	_REUSE_MAP_IF_PINNED(ing_vsip_supp_map);
 	_REUSE_MAP_IF_PINNED(ing_vsip_except_map);
 	_REUSE_MAP_IF_PINNED(conn_track_cache);
+	_REUSE_MAP_IF_PINNED(masquerade_conn_map);
 	_REUSE_MAP_IF_PINNED(ing_pod_label_policy_map);
 	_REUSE_MAP_IF_PINNED(ing_namespace_label_policy_map);
 	_REUSE_MAP_IF_PINNED(ing_pod_and_namespace_label_policy_map);
@@ -645,22 +661,31 @@ int trn_user_metadata_init(struct user_metadata_t *md, char *itf,
 	return 0;
 }
 
-uint32_t trn_get_interface_ipv4(int itf_idx)
+int trn_get_interface_property(int itf_idx, unsigned int req, struct ifreq *ipv4_ifr)
 {
 	int fd;
 	struct ifreq ifr;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
-
+	if (fd < 0) {
+		TRN_LOG_ERROR("Failed to create socket. Errno: %d", errno);
+		return 1;
+	}
 	/* IPv4 IP address */
+	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_addr.sa_family = AF_INET;
-
-	if_indextoname(itf_idx, ifr.ifr_name);
-	ioctl(fd, SIOCGIFADDR, &ifr);
-
+	if (if_indextoname(itf_idx, ifr.ifr_name) == NULL) {
+		TRN_LOG_ERROR("if_indextoname failed. Errno: %d", errno);
+		return 1;
+	}
+	if (ioctl(fd, req, &ifr) == -1) {
+		TRN_LOG_ERROR("Request %u ioctl failed. Errno: %d", req, errno);
+		return 1;
+	}
 	close(fd);
 
-	return ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr.s_addr;
+	memcpy(ipv4_ifr, &ifr, sizeof(ifr));
+	return 0;
 }
 
 int trn_update_transit_network_policy_map(int fd,

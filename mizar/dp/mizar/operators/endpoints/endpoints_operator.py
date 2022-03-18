@@ -299,6 +299,8 @@ class EndpointOperator(object):
             bouncers.append(SubstrateAddress(
                 version="4", ip_address=bouncer.ip, mac=bouncer.mac))
 
+        host_cidr = get_host_cidr()
+        service_cidr = get_service_cidr()
         interfaces_list = [Interface(
             interface_id=interface.interface_id,
             interface_type=interface.interface_type,
@@ -314,7 +316,13 @@ class EndpointOperator(object):
             pod_network_class=interface.pod_network_class,
             pod_network_priority=interface.pod_network_priority,
             vpc_ip=ep.vpc_ip,
-            vpc_prefix=ep.vpc_prefix
+            vpc_prefix=ep.vpc_prefix,
+            host_cidr_ip=host_cidr.split('/')[0],
+            host_cidr_prefix=host_cidr.split('/')[1],
+            pod_cidr_ip=ep.vpc_ip,
+            pod_cidr_prefix=ep.vpc_prefix,
+            service_cidr_ip=service_cidr.split('/')[0],
+            service_cidr_prefix=service_cidr.split('/')[1],
         )]
 
         if ep.type == OBJ_DEFAULTS.ep_type_host:

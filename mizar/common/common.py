@@ -497,3 +497,17 @@ def get_cluster_vpc_vni():
         cluster_vpc_vni = OBJ_DEFAULTS.default_vpc_vni
         logger.info("Using default cluster VNI {}.".format(cluster_vpc_vni))
     return cluster_vpc_vni
+
+def get_host_cidr():
+    default_if = get_default_itf()
+    default_if_ip_cmd = "ip addr show {} | grep 'inet '".format(default_if)
+    ret, default_if_ip_line = run_cmd(default_if_ip_cmd)
+    default_if_ip = default_if_ip_line.split()[1]
+    host_cidr_cmd = "ip route show src {} dev {} proto kernel | cut -d' ' -f1".format(default_if_ip, default_if)
+    ret, host_cidr = run_cmd(host_cidr_cmd)
+    return host_cidr
+
+def get_service_cidr():
+    #TODO: Hard-coded default for now. Fix it to get from kube API.
+    service_cidr = "10.96.0.0/16"
+    return service_cidr

@@ -45,9 +45,9 @@ int trn_cli_update_agent_ep_subcmd(CLIENT *clnt, int argc, char *argv[])
 	rpc_trn_endpoint_t ep;
 	char rpc[] = "update_agent_ep_1";
 
-	char veth[20];
-	char hosted_itf[20];
-	uint32_t remote_ips[RPC_TRN_MAX_REMOTE_IPS];
+	char veth[20] = {0};
+	char hosted_itf[20] = {0};
+	uint32_t remote_ips[RPC_TRN_MAX_REMOTE_IPS] = {0};
 	ep.remote_ips.remote_ips_val = remote_ips;
 	ep.remote_ips.remote_ips_len = 0;
 	ep.veth = veth;

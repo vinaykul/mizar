@@ -304,7 +304,8 @@ int trn_agent_bpf_maps_init(struct agent_user_metadata_t *md)
 	md->ing_vsip_supp_map = bpf_map__next(md->ing_vsip_ppo_map, md->obj);
 	md->ing_vsip_except_map = bpf_map__next(md->ing_vsip_supp_map, md->obj);
 	md->conn_track_cache = bpf_map__next(md->ing_vsip_except_map, md->obj);
-	md->ing_pod_label_policy_map = bpf_map__next(md->conn_track_cache, md->obj);
+	md->masquerade_conn_map = bpf_map__next(md->conn_track_cache, md->obj);
+	md->ing_pod_label_policy_map = bpf_map__next(md->masquerade_conn_map, md->obj);
 	md->ing_namespace_label_policy_map = bpf_map__next(md->ing_pod_label_policy_map, md->obj);
 	md->ing_pod_and_namespace_label_policy_map = bpf_map__next(md->ing_namespace_label_policy_map, md->obj);
 	md->tx_stats_map = bpf_map__next(md->ing_pod_and_namespace_label_policy_map, md->obj);
@@ -318,7 +319,7 @@ int trn_agent_bpf_maps_init(struct agent_user_metadata_t *md)
 	    !md->eg_vsip_except_map ||  !md->ing_vsip_enforce_map ||
 	    !md->ing_vsip_prim_map || !md->ing_vsip_ppo_map ||
 	    !md->ing_vsip_supp_map || !md->ing_vsip_except_map ||
-	    !md->conn_track_cache || !md->packet_metadata_map ||
+	    !md->conn_track_cache || !md->masquerade_conn_map || !md->packet_metadata_map ||
 	    !md->ing_pod_label_policy_map || !md->ing_namespace_label_policy_map ||
 	    !md->ing_pod_and_namespace_label_policy_map || !md->tx_stats_map) {
 		TRN_LOG_ERROR("Failure finding maps objects.");
@@ -345,6 +346,7 @@ int trn_agent_bpf_maps_init(struct agent_user_metadata_t *md)
 	md->ing_vsip_supp_map_fd	= bpf_map__fd(md->ing_vsip_supp_map);
 	md->ing_vsip_except_map_fd	= bpf_map__fd(md->ing_vsip_except_map);
 	md->conn_track_cache_fd		= bpf_map__fd(md->conn_track_cache);
+	md->masquerade_conn_map_fd	= bpf_map__fd(md->masquerade_conn_map);
 	md->ing_pod_label_policy_map_fd = bpf_map__fd(md->ing_pod_label_policy_map);
 	md->ing_namespace_label_policy_map_fd = bpf_map__fd(md->ing_namespace_label_policy_map);
 	md->ing_pod_and_namespace_label_policy_map_fd = bpf_map__fd(md->ing_pod_and_namespace_label_policy_map);
@@ -373,6 +375,7 @@ int trn_agent_bpf_maps_init(struct agent_user_metadata_t *md)
 	bpf_map__pin(md->ing_vsip_supp_map, ing_vsip_supp_map_path);
 	bpf_map__pin(md->ing_vsip_except_map, ing_vsip_except_map_path);
 	bpf_map__pin(md->conn_track_cache, conn_track_cache_path);
+	bpf_map__pin(md->masquerade_conn_map, masquerade_conn_map_path);
 	bpf_map__pin(md->ing_pod_label_policy_map, ing_pod_label_policy_map_path);
 	bpf_map__pin(md->ing_namespace_label_policy_map, ing_namespace_label_policy_map_path);
 	bpf_map__pin(md->ing_pod_and_namespace_label_policy_map, ing_pod_and_namespace_label_policy_map_path);
@@ -519,6 +522,7 @@ static int _trn_bpf_agent_prog_load_xattr(struct agent_user_metadata_t *md,
 	_REUSE_MAP_IF_PINNED(ing_vsip_supp_map);
 	_REUSE_MAP_IF_PINNED(ing_vsip_except_map);
 	_REUSE_MAP_IF_PINNED(conn_track_cache);
+	_REUSE_MAP_IF_PINNED(masquerade_conn_map);
 	_REUSE_MAP_IF_PINNED(ing_pod_label_policy_map);
 	_REUSE_MAP_IF_PINNED(ing_namespace_label_policy_map);
 	_REUSE_MAP_IF_PINNED(ing_pod_and_namespace_label_policy_map);

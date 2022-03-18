@@ -51,6 +51,40 @@ static inline __u8* get_originated_conn_state(void *conntracks, __u64 tunnel_id,
 	return bpf_map_lookup_elem(conntracks, &rev_conn);
 }
 
+__ALWAYS_INLINE__
+static inline int set_ipv4_masqueraded_conn_state(void *masq, const struct ipv4_tuple_t *egress, __u32 masq_saddr,
+							__u16 masq_sport, __u64 tunnel_id, int src_ifindex, unsigned char *src_mac)
+{
+	struct ipv4_masq_conn_key_t masq_conn_key = {
+		.protocol = egress->protocol,
+		.masq_saddr = masq_saddr,
+		.daddr = egress->daddr,
+		.masq_sport = masq_sport,
+		.dport = egress->dport,
+	};
+	struct ipv4_masq_conn_value_t masq_conn_value = {
+		.tunnel_id = tunnel_id,
+		.saddr = egress->saddr,
+		.sport = egress->sport,
+		.src_ifindex = src_ifindex,
+	};
+	__builtin_memcpy(masq_conn_value.src_mac, src_mac, sizeof(masq_conn_value.src_mac));
+	return bpf_map_update_elem(masq, &masq_conn_key, &masq_conn_value, 0);
+}
+
+__ALWAYS_INLINE__
+static inline struct ipv4_masq_conn_value_t* get_ipv4_masqueraded_conn_state(void *masq, const struct ipv4_tuple_t *ingress)
+{
+	struct ipv4_masq_conn_key_t conn_key = {
+		.protocol = ingress->protocol,
+		.masq_saddr = ingress->daddr,
+		.daddr = ingress->saddr,
+		.masq_sport = ingress->dport,
+		.dport = ingress->sport,
+	};
+	return bpf_map_lookup_elem(masq, &conn_key);
+}
+
 /*
    check if ingress network policy should be enforced to specific destination
    return value:

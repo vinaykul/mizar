@@ -134,6 +134,15 @@ struct bpf_map_def SEC("maps") conn_track_cache = {
 };
 BPF_ANNOTATE_KV_PAIR(conn_track_cache, struct ipv4_ct_tuple_t, __u8);
 
+// Masqueraded connections map for external access
+struct bpf_map_def SEC("maps") masquerade_conn_map = {
+	.type = BPF_MAP_TYPE_LRU_HASH,
+	.key_size = sizeof(struct ipv4_masq_conn_key_t),
+	.value_size = sizeof(struct ipv4_masq_conn_value_t),
+	.max_entries = TRAN_MAX_CACHE_SIZE,
+};
+BPF_ANNOTATE_KV_PAIR(masquerade_conn_map, struct ipv4_masq_conn_key_t, struct ipv4_masq_conn_value_t);
+
 struct bpf_map_def SEC("maps") ing_pod_label_policy_map = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(struct pod_label_policy_t),

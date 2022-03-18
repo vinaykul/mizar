@@ -605,21 +605,62 @@ int trn_cli_parse_tun_intf(const cJSON *jsonobj, rpc_trn_tun_intf_t *itf)
 	return 0;
 }
 
+int trn_cli_parse_cidr(const cJSON *jsonobj, rpc_trn_ip_cidr_t *cidr)
+{
+	cJSON *ip = cJSON_GetObjectItem(jsonobj, "ip");
+	cJSON *prefix = cJSON_GetObjectItem(jsonobj, "prefix");
+
+	if (ip != NULL && cJSON_IsString(ip)) {
+		struct sockaddr_in sa;
+		inet_pton(AF_INET, ip->valuestring, &(sa.sin_addr));
+		cidr->ip = htonl(sa.sin_addr.s_addr);
+	} else {
+		print_err("Error: CIDR IP is missing or non-string\n");
+		return -EINVAL;
+	}
+	if (cJSON_IsString(prefix)) {
+		uint32_t prefixlen = (uint32_t)atoi(prefix->valuestring);
+		prefixlen = (prefixlen > 32) ? 32 : prefixlen;
+		cidr->netmask = (0xFFFFFFFF << (32 - prefixlen)) & 0xFFFFFFFF;
+	} else {
+		print_err("Error: CIDR prefix length missing or non-string\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int trn_cli_parse_cluster_cidr(const cJSON *jsonobj, rpc_trn_cluster_cidr_t *cluster_cidr)
+{
+	cJSON *host_cidr = cJSON_GetObjectItem(jsonobj, "host_cidr");
+	cJSON *pod_cidr = cJSON_GetObjectItem(jsonobj, "pod_cidr");
+	cJSON *service_cidr = cJSON_GetObjectItem(jsonobj, "service_cidr");
+
+	int err_host_cidr, err_pod_cidr, err_service_cidr;
+	err_host_cidr = trn_cli_parse_cidr(host_cidr, &cluster_cidr->host_cidr);
+	err_pod_cidr = trn_cli_parse_cidr(pod_cidr, &cluster_cidr->pod_cidr);
+	err_service_cidr = trn_cli_parse_cidr(service_cidr, &cluster_cidr->service_cidr);
+	if (err_host_cidr || err_pod_cidr || err_service_cidr) {
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int trn_cli_parse_agent_md(const cJSON *jsonobj,
 			   rpc_trn_agent_metadata_t *agent_md)
 {
 	cJSON *ep = cJSON_GetObjectItem(jsonobj, "ep");
 	cJSON *net = cJSON_GetObjectItem(jsonobj, "net");
 	cJSON *eth = cJSON_GetObjectItem(jsonobj, "eth");
-	int err_ep, err_net, err_eth;
+	cJSON *cluster_cidr = cJSON_GetObjectItem(jsonobj, "cluster_cidr");
+	int err_ep, err_net, err_eth, err_cidr;
 	err_ep = trn_cli_parse_ep(ep, &agent_md->ep);
 	err_net = trn_cli_parse_net(net, &agent_md->net);
 	err_eth = trn_cli_parse_tun_intf(eth, &agent_md->eth);
-
-	if (err_ep || err_net || err_eth) {
+	err_cidr = trn_cli_parse_cluster_cidr(cluster_cidr, &agent_md->cluster_cidr);
+	if (err_ep || err_net || err_eth || err_cidr) {
 		return -EINVAL;
 	}
-
 	return 0;
 }
 

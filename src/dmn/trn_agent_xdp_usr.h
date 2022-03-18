@@ -80,6 +80,7 @@ struct agent_user_metadata_t {
 	int ing_vsip_supp_map_fd;
 	int ing_vsip_except_map_fd;
 	int conn_track_cache_fd;
+	int masquerade_conn_map_fd;
 	int ing_pod_label_policy_map_fd;
 	int ing_namespace_label_policy_map_fd;
 	int ing_pod_and_namespace_label_policy_map_fd;
@@ -111,6 +112,7 @@ struct agent_user_metadata_t {
 	struct bpf_map *ing_vsip_supp_map;
 	struct bpf_map *ing_vsip_except_map;
 	struct bpf_map *conn_track_cache;
+	struct bpf_map *masquerade_conn_map;
 	struct bpf_map *ing_pod_label_policy_map;
 	struct bpf_map *ing_namespace_label_policy_map;
 	struct bpf_map *ing_pod_and_namespace_label_policy_map;

@@ -474,7 +474,24 @@ static __inline int trn_process_inner_ip(struct transit_packet *pkt)
 		}
 	}
 
-	return trn_redirect(pkt, pkt->inner_ip->saddr, pkt->inner_ip->daddr);
+	if (!trn_is_cluster_external_addr(&pkt->agent_md->cluster_cidr, bpf_htonl(pkt->inner_ipv4_tuple.daddr))) {
+		return trn_redirect(pkt, pkt->inner_ip->saddr, pkt->inner_ip->daddr);
+	}
+
+	/* Packet destined outside the cluster - perform IP masquerading */
+	__u32 masq_saddr = pkt->agent_md->eth.ip;
+	__u16 masq_sport = pkt->inner_ipv4_tuple.sport;
+	/* TODO: Add supported for RELATED,ESTABLISHED connections. Add support for timeouts/stale connection cleanup */
+	set_ipv4_masqueraded_conn_state(&masquerade_conn_map, &pkt->inner_ipv4_tuple, masq_saddr, masq_sport,
+					pkt->agent_ep_tunid, pkt->xdp->ingress_ifindex, pkt->inner_eth->h_source);
+	__u64 csum = 0;
+	trn_inner_l4_csum_update(pkt, pkt->inner_ip->saddr, masq_saddr);
+	pkt->inner_ip->check = 0;
+	pkt->inner_ip->saddr = masq_saddr;
+	trn_ipv4_csum_inline(pkt->inner_ip, &csum);
+	pkt->inner_ip->check = csum;
+	trn_set_src_mac(pkt->data, pkt->agent_md->eth.mac);
+	return bpf_redirect_map(&interfaces_map, 0, 0);
 }
 
 static __inline int trn_process_arp(struct transit_packet *pkt)

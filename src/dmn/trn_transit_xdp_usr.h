@@ -77,6 +77,7 @@ struct ebpf_prog_stage_t {
 	int ing_vsip_supp_map_ref_fd;
 	int ing_vsip_except_map_ref_fd;
 	int conn_track_cache_ref_fd;
+	int masquerade_conn_map_ref_fd;
 	int ing_pod_label_policy_map_ref_fd;
 	int ing_namespace_label_policy_map_ref_fd;
 	int ing_pod_and_namespace_label_policy_map_ref_fd;
@@ -105,6 +106,7 @@ struct ebpf_prog_stage_t {
 	struct bpf_map *ing_vsip_supp_map_ref;
 	struct bpf_map *ing_vsip_except_map_ref;
 	struct bpf_map *conn_track_cache_ref;
+	struct bpf_map *masquerade_conn_map_ref;
 	struct bpf_map *ing_pod_label_policy_map_ref;
 	struct bpf_map *ing_namespace_label_policy_map_ref;
 	struct bpf_map *ing_pod_and_namespace_label_policy_map_ref;
@@ -144,6 +146,7 @@ struct user_metadata_t {
 	int ing_vsip_supp_map_fd;
 	int ing_vsip_except_map_fd;
 	int conn_track_cache_fd;
+	int masquerade_conn_map_fd;
 	int ing_pod_label_policy_map_fd;
 	int ing_namespace_label_policy_map_fd;
 	int ing_pod_and_namespace_label_policy_map_fd;
@@ -173,6 +176,7 @@ struct user_metadata_t {
 	struct bpf_map *ing_vsip_supp_map;
 	struct bpf_map *ing_vsip_except_map;
 	struct bpf_map *conn_track_cache;
+	struct bpf_map *masquerade_conn_map;
 	struct bpf_map *ing_pod_label_policy_map;
 	struct bpf_map *ing_namespace_label_policy_map;
 	struct bpf_map *ing_pod_and_namespace_label_policy_map;
@@ -221,7 +225,8 @@ int trn_delete_network(struct user_metadata_t *md,
 int trn_user_metadata_init(struct user_metadata_t *md, char *itf,
 			   char *kern_path, int xdp_flags);
 
-uint32_t trn_get_interface_ipv4(int itf_idx);
+struct ifreq;
+int trn_get_interface_property(int itf_idx, unsigned int req, struct ifreq *ipv4_ifr);
 
 int trn_add_prog(struct user_metadata_t *md, unsigned int prog_idx,
 		 const char *prog_path);

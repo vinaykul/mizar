@@ -157,6 +157,7 @@ struct transit_packet {
 	/* interface index */
 	int itf_idx;
 	__u32 itf_ipv4;
+	__u32 itf_netmask;
 
 	/* xdp*/
 	struct xdp_md *xdp;
@@ -534,7 +535,6 @@ static inline void trn_reverse_ipv4_tuple(struct ipv4_tuple_t *tuple)
 
 __ALWAYS_INLINE__
 static inline void trn_reset_rts_opt(struct transit_packet *pkt)
-
 {
 	pkt->rts_opt->type = 0;
 	pkt->rts_opt->length = 0;
@@ -544,10 +544,31 @@ static inline void trn_reset_rts_opt(struct transit_packet *pkt)
 
 __ALWAYS_INLINE__
 static inline void trn_reset_scaled_ep_opt(struct transit_packet *pkt)
-
 {
 	pkt->scaled_ep_opt->type = 0;
 	pkt->scaled_ep_opt->length = 0;
 	__builtin_memset(&pkt->scaled_ep_opt->scaled_ep_data, 0,
 			 sizeof(struct trn_gnv_scaled_ep_data));
+}
+
+__ALWAYS_INLINE__
+static inline int trn_is_addr_in_subnet(struct ip_cidr_t cidr, __u32 addr)
+{
+	if ((addr & cidr.netmask) == (cidr.ip & cidr.netmask)) {
+		return 1;
+	}
+	return 0;
+}
+
+__ALWAYS_INLINE__
+static inline int trn_is_cluster_external_addr(struct cluster_cidr_t *cscidr, __u32 addr)
+{
+	if (cscidr != NULL) {
+		if (trn_is_addr_in_subnet(cscidr->pod_cidr, addr) ||
+			trn_is_addr_in_subnet(cscidr->service_cidr, addr) ||
+			trn_is_addr_in_subnet(cscidr->host_cidr, addr)) {
+			return 0;
+		}
+	}
+	return 1;
 }

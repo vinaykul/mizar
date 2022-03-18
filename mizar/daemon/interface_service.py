@@ -596,7 +596,21 @@ class LocalTransitRpc:
                 "ip": interface.droplet.ip_address,
                 "mac": interface.droplet.mac,
                 "iface": default_itf
-            }
+            },
+            "cluster_cidr": {
+                "host_cidr": {
+                    "ip": interface.host_cidr_ip,
+                    "prefix": interface.host_cidr_prefix,
+                },
+                "pod_cidr": {
+                    "ip": interface.pod_cidr_ip,
+                    "prefix": interface.pod_cidr_prefix,
+                },
+                "service_cidr": {
+                    "ip": interface.service_cidr_ip,
+                    "prefix": interface.service_cidr_prefix,
+                },
+            },
         }
         jsonconf = json.dumps(jsonconf)
         cmd = f'''{self.trn_cli_update_agent_metadata} -i \'{itf}\' -j \'{jsonconf}\''''
