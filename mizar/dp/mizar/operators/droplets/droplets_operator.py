@@ -101,7 +101,12 @@ class DropletOperator(object):
         droplets = set(self.store.get_all_droplets())
         if len(droplets) == 0:
             return False
-        d = random.sample(droplets, 1)[0]
+        #d = random.sample(droplets, 1)[0]
+        #TODO: Consider making this environment variable for more programmability?
+        logger.info("VDBG: DEMO-ONLY CODE. Selecting 'qos-premium-rx' droplet instead of random from {}".format(len(droplets)))
+        d = self.store.get_droplet("qos-premium-rx")
+        if not d:
+            return False
         bouncer.set_droplet(d)
         return True
 

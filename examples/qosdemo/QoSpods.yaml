@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-premium
+  annotations:
+    mizar.com/network-class: Premium
+    mizar.com/network-priority: Medium
+spec:
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - qos-sender
+  restartPolicy: OnFailure
+  terminationGracePeriodSeconds: 2
+  containers:
+  - name: netctr
+    image: skiibum/testpod-aarch64:latest
+    imagePullPolicy: IfNotPresent
+    command: ["tail", "-f", "/dev/null"]
+    ports:
+    - containerPort: 4444
+      protocol: UDP
+    - containerPort: 4444
+      protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-expedited
+  annotations:
+    mizar.com/network-class: Expedited
+    mizar.com/network-priority: High
+spec:
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - qos-sender
+  restartPolicy: OnFailure
+  terminationGracePeriodSeconds: 2
+  containers:
+  - name: netctr
+    image: skiibum/testpod-aarch64:latest
+    imagePullPolicy: IfNotPresent
+    command: ["tail", "-f", "/dev/null"]
+    ports:
+    - containerPort: 6666
+      protocol: UDP
+    - containerPort: 6666
+      protocol: TCP
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-best-effort
+  annotations:
+    mizar.com/network-class: BestEffort
+    mizar.com/network-priority: Low
+spec:
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - qos-sender
+  restartPolicy: OnFailure
+  terminationGracePeriodSeconds: 2
+  containers:
+  - name: netctr
+    image: skiibum/testpod-aarch64:latest
+    imagePullPolicy: IfNotPresent
+    command: ["tail", "-f", "/dev/null"]
+    ports:
+    - containerPort: 8888
+      protocol: UDP
+    - containerPort: 8888
+      protocol: TCP
