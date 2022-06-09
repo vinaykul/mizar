@@ -345,8 +345,10 @@ class InterfaceServer(InterfaceServiceServicer):
         cmd = "nsenter -t 1 -m -u -n -i cat /sys/class/net/{}/speed".format(
             interface.veth.name)
         rc, linkspeed = run_cmd(cmd)
-        linkspeed_bytes_per_sec = int(
-            int(linkspeed.rstrip('\r\n')) * 1000 * (1000 / 8))
+        linkspeed = linkspeed.rstrip('\r\n')
+        logger.info("VDBG: INTERFACE {} LINK_SPEED {}".format(interface.veth.name, linkspeed))
+        linkspeed = "3000" #TODO: DO-NOT-MERGE: This is demo hack because qemu-virtio on M1 mac does not report link speed
+        linkspeed_bytes_per_sec = int(int(linkspeed) * 1000 * (1000 / 8))
         logger.info("Host interface {} Link Speed {} bytes/sec".format(
             interface.veth.name, linkspeed_bytes_per_sec))
 

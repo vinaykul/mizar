@@ -100,6 +100,34 @@ int trn_user_metadata_free(struct user_metadata_t *md)
 	return 0;
 }
 
+static int bw_qos_config_map_fd	= -1;
+static const char *bw_qos_config_map_path = "/sys/fs/bpf/tc/globals/bw_qos_config_map";
+
+int init_bw_qos_config_map()
+{
+	TRN_LOG_ERROR("VDBG >>>>> init_bw_qos_config_map");
+	if (bw_qos_config_map_fd < 0) {
+		int qos_cfg_map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
+							sizeof(struct bw_qos_config_key_t),
+							sizeof(struct bw_qos_config_t), 1, 0);
+		if (qos_cfg_map_fd < 0) {
+			TRN_LOG_ERROR("trn_transit_xdp_usr.c-%d: Failure creating bw_qos_config_map. errno=%d:%s", __LINE__, errno, strerror(errno));
+			return -1;
+		}
+
+		if (bpf_obj_pin(qos_cfg_map_fd, bw_qos_config_map_path) != 0) {
+			if (errno != EEXIST) {
+				TRN_LOG_ERROR("trn_transit_xdp_usr.c-%d: Failure pinning bw_qos_config_map. errno=%d:%s", __LINE__, errno, strerror(errno));
+				close(qos_cfg_map_fd);
+				return -1;
+			}
+		}
+		bw_qos_config_map_fd = qos_cfg_map_fd;
+	}
+	TRN_LOG_ERROR("VDBG <<<<< init_bw_qos_config_map FD=%d", bw_qos_config_map_fd);
+	return bw_qos_config_map_fd;
+}
+
 int trn_bpf_maps_init(struct user_metadata_t *md)
 {
 	md->jmp_table_map = bpf_map__next(NULL, md->obj);
@@ -207,6 +235,8 @@ int trn_bpf_maps_init(struct user_metadata_t *md)
 	bpf_map__pin(md->ing_namespace_label_policy_map, ing_namespace_label_policy_map_path);
 	bpf_map__pin(md->ing_pod_and_namespace_label_policy_map, ing_pod_and_namespace_label_policy_map_path);
 	bpf_map__pin(md->tx_stats_map, tx_stats_map_path);
+
+	init_bw_qos_config_map();
 
 	return 0;
 }
@@ -850,31 +880,10 @@ int trn_get_tx_stats(struct user_metadata_t *md,
 	return 0;
 }
 
-static int bw_qos_config_map_fd	= -1;
-static const char *bw_qos_config_map_path = "/sys/fs/bpf/tc/globals/bw_qos_config_map";
-
-int init_bw_qos_config_map()
-{
-	if (bw_qos_config_map_fd == -1) {
-		bw_qos_config_map_fd = bpf_create_map(BPF_MAP_TYPE_HASH,
-							sizeof(struct bw_qos_config_key_t),
-							sizeof(struct bw_qos_config_t), 1, 0);
-		if (bw_qos_config_map_fd == -1) {
-			TRN_LOG_ERROR("Failure creating bw_qos_config_map. errno=%d:%s", errno, strerror(errno));
-			return -1;
-		}
-
-		if (bpf_obj_pin(bw_qos_config_map_fd, bw_qos_config_map_path) != 0) {
-			TRN_LOG_ERROR("Failure pinning bw_qos_config_map. errno=%d:%s", errno, strerror(errno));
-			return -1;
-		}
-	}
-	return bw_qos_config_map_fd;
-}
-
 int get_bw_qos_config_map_fd()
 {
 	if (bw_qos_config_map_fd == -1) {
+		init_bw_qos_config_map();
 		int fd = bpf_obj_get(bw_qos_config_map_path);
 		if (fd <= 0) {
 			TRN_LOG_ERROR("Failure getting bw_qos_config_map_fd. errno=%d:%s", errno, strerror(errno));
