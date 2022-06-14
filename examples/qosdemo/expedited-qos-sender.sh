@@ -13,10 +13,12 @@ echo " "
 echo "Pinging receiver from expedited QoS class pod..."
 echo " "
 
-kubectl exec -ti ${pod_name} -- ping -c2 ${dest_ip}
+kubectl exec -ti ${pod_name} -- ping -c1 ${dest_ip}
+
+pod_ip=$(docker exec -ti $(docker ps | grep netctr_qos-best | awk '{print $1}') ip -4 a s eth0 | grep inet | awk '{print $2}' | cut -d/ -f1)
 
 echo " "
-echo "Ping successful. Expedited QoS class pod waiting for READY-SET-GO!!"
+echo "Ping ${pod_ip} -> ${dest_ip} success. EXPEDITED QoS pod waiting for READY-SET-GO!"
 echo " "
 
 while [ ! -f /tmp/rdysetgo ] ;
