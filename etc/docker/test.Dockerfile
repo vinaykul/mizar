@@ -29,6 +29,9 @@ RUN apt-get install -y net-tools
 RUN apt-get install -y tcpdump
 RUN apt-get install -y ethtool
 RUN apt-get install -y sudo
+RUN apt-get install -y vim
+RUN apt-get install -y apache2-utils
+RUN pip3 install kubernetes==11.0.0
 COPY teste2e/ /var/mizar/test
 EXPOSE 8000 9001 5001 7000
 CMD /var/mizar/test/scripts/run_servers.sh
