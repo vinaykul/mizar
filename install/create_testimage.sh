@@ -31,6 +31,6 @@ fi
 
 # Build the daemon image
 if [[ "$MODE" == "dev" || "$MODE" == "final" ]]; then
-  docker image build -t $DOCKER_ACC/testpod:latest -f $DIR/etc/docker/test.Dockerfile $DIR
-  docker image push $DOCKER_ACC/testpod:latest
+  docker image build -t $DOCKER_ACC/netpod:dev -f $DIR/etc/docker/test.Dockerfile $DIR
+  docker image push $DOCKER_ACC/netpod:dev
 fi
