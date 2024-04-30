@@ -19,7 +19,8 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-FROM python:3.9
+#FROM python:3.9.18
+FROM ubuntu:22.04
 RUN apt-get update -y
 RUN apt-get install -y iproute2
 RUN apt-get install -y iputils-ping
@@ -29,6 +30,12 @@ RUN apt-get install -y net-tools
 RUN apt-get install -y tcpdump
 RUN apt-get install -y ethtool
 RUN apt-get install -y sudo
+RUN apt-get install -y ca-certificates
 COPY teste2e/ /var/mizar/test
-EXPOSE 8000 9001 5001 7000
+RUN mkdir -p /etc/ssl/certs
+COPY teste2e/scripts/test_key.pem /etc/ssl/certs/
+COPY teste2e/scripts/test_server_cert.pem /etc/ssl/certs/
+COPY teste2e/scripts/test_client_cert.pem /etc/ssl/certs/
+RUN update-ca-certificates
+EXPOSE 8000 9001 5001 7000 7443
 CMD /var/mizar/test/scripts/run_servers.sh

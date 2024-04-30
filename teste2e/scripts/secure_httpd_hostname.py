@@ -1,5 +1,3 @@
-#/bin/bash
-
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2022 The Authors.
 
@@ -20,10 +18,29 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-SCRIPTS_DIR='/var/mizar/test/scripts'
+#!/usr/bin/env python3
+import http.server
+import socket
+import ssl
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-python3 $SCRIPTS_DIR/secure_httpd_hostname.py &
-python3 $SCRIPTS_DIR/httpd_hostname.py &
-python3 $SCRIPTS_DIR/tcp_hostname.py &
-python3 $SCRIPTS_DIR/udp_hostname.py &
-while true; do echo "test"; sleep 2; done
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        print("do_GET")
+        self.send_response(200)
+        self.end_headers()
+        print("done_GET")
+        host = bytes(socket.gethostname(), 'utf-8')
+        self.wfile.write(host)
+        print("sent_GET")
+
+print("Starting..")
+server_address = ('', 7443)
+httpd = http.server.HTTPServer(server_address, http.server.SimpleHTTPRequestHandler)
+print("Server created..")
+ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_SERVER)
+ctx.load_cert_chain(certfile="/etc/ssl/certs/test_server_cert.pem", keyfile="/etc/ssl/certs/test_key.pem")
+print("Certs loaded..")
+httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+print("Serving..")
+httpd.serve_forever()
